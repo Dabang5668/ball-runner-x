@@ -265,20 +265,27 @@ applyAccentTheme();
 
 function resize(){
 
+    /* Logical drawing space never changes - every constant in the game
+       (GROUND, PLAYER_X, HUD positions) is written against 960x540. */
+
     W = 960;
     H = 540;
 
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-
     /* Fully JS-driven sizing so the game box can never be clipped
        or squashed by conflicting CSS constraints, regardless of
-       window shape. */
+       window shape. The box now grows to fill the window instead of
+       being capped at 1100px, which left big empty margins on
+       desktop monitors. */
 
-    const maxW = Math.min(window.innerWidth - 20, 1100);
-    const maxH = window.innerHeight - 20;
+    const header = document.getElementById("playHeader");
+    const headerH = header ? header.getBoundingClientRect().height : 0;
+
+    /* body padding (10px top + bottom) + the flex gap between header
+       and game box + a little breathing room */
+    const chrome = headerH + 42;
+
+    const maxW = window.innerWidth - 20;
+    const maxH = window.innerHeight - chrome;
 
     let w = maxW;
     let h = w * 9 / 16;
@@ -288,8 +295,24 @@ function resize(){
         w = h * 16 / 9;
     }
 
+    w = Math.max(320, Math.round(w));
+    h = Math.max(180, Math.round(h));
+
     gameWrap.style.width = w + "px";
     gameWrap.style.height = h + "px";
+
+    /* Backing store follows the on-screen size so a stretched box stays
+       crisp instead of being an upscaled 960x540 bitmap. Capped at 2.5x
+       to keep the fill rate sane on big screens. */
+
+    const density = Math.min(window.devicePixelRatio || 1, 2);
+
+    dpr = Math.min((w / W) * density, 2.5);
+
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+
+    ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 
 resize();
@@ -386,7 +409,25 @@ let totalCoinsCollected =
 
 /* When the player logs in mid-session, GameAuth merges their cloud
    save into localStorage - so re-read it here to pick up a better
-   high score, extra coins and already-unlocked achievements. */
+   high score, extra coins and already-unlocked achievements.
+
+   On log OUT, GameAuth wipes the device progress instead, so the
+   in-memory copies have to be able to go DOWN as well as up. That is
+   what window.GameProgressReset is for: it makes the running game
+   adopt whatever localStorage currently says, in either direction. */
+
+window.GameProgressReset = function(){
+
+    game.highScore = Number(localStorage.getItem("ballRunnerHighScore") || 0);
+    totalCoinsCollected = Number(localStorage.getItem("ballRunnerTotalCoins") || 0);
+
+    try{
+        const stored = JSON.parse(localStorage.getItem("ballRunnerAchievements") || "[]");
+        unlockedAchievements = new Set(Array.isArray(stored) ? stored : []);
+    }catch(e){
+        unlockedAchievements = new Set();
+    }
+};
 
 if(window.GameAuth){
 
@@ -2840,8 +2881,8 @@ function updateObstacles(){
    make the ball jump and Escape would fight the modal. */
 
 function authModalOpen(){
-    const overlay = document.getElementById("authOverlay");
-    return !!(overlay && overlay.classList.contains("open"));
+    /* covers both the login modal and the profile dashboard */
+    return !!document.querySelector(".auth-overlay.open");
 }
 
 window.addEventListener("keydown",e=>{
@@ -3086,6 +3127,15 @@ function drawHUD(){
 
 
     ctx.save();
+
+    /* Canvas text state is global, and drawPopups() leaves textAlign on
+       "center" - which used to push the SCORE / BEST readouts halfway off
+       the left edge. Reset both text properties explicitly. */
+
+    ctx.textAlign="left";
+    ctx.textBaseline="alphabetic";
+    ctx.shadowBlur=0;
+    ctx.globalAlpha=1;
 
     /* score */
 

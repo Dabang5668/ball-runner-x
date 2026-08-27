@@ -13,6 +13,7 @@
 create table if not exists public.profiles (
     id            uuid        primary key references auth.users(id) on delete cascade,
     username      text        not null,
+    avatar        text        not null default '',
     best_score    integer     not null default 0,
     total_coins   integer     not null default 0,
     achievements  jsonb       not null default '[]'::jsonb,
@@ -21,9 +22,38 @@ create table if not exists public.profiles (
     updated_at    timestamptz not null default now(),
 
     constraint profiles_username_length check (char_length(username) between 3 and 20),
+    constraint profiles_avatar_length check (char_length(avatar) <= 40),
     constraint profiles_best_score_positive check (best_score >= 0),
     constraint profiles_total_coins_positive check (total_coins >= 0)
 );
+
+-- existing projects: add the avatar column without touching the data
+alter table public.profiles
+    add column if not exists avatar text not null default '';
+
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'profiles_avatar_length'
+    ) then
+        alter table public.profiles
+            add constraint profiles_avatar_length check (char_length(avatar) <= 40);
+    end if;
+end $$;
+
+-- usernames are player-editable, so keep them inside a safe character set.
+-- NOT VALID: only new/updated rows are checked, so any legacy row with an
+-- odd username is left alone instead of blocking the migration.
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'profiles_username_charset'
+    ) then
+        alter table public.profiles
+            add constraint profiles_username_charset
+            check (username ~ '^[A-Za-z0-9_]{3,20}$') not valid;
+    end if;
+end $$;
 
 -- case-insensitive unique usernames
 create unique index if not exists profiles_username_unique_idx
@@ -167,9 +197,12 @@ create trigger profiles_touch_updated_at
 
 drop view if exists public.leaderboard;
 
+drop function if exists public.get_leaderboard(integer);
+
 create or replace function public.get_leaderboard(row_limit integer default 10)
 returns table (
     username    text,
+    avatar      text,
     best_score  integer,
     total_coins integer
 )
@@ -178,7 +211,7 @@ security definer
 stable
 set search_path = public
 as $$
-    select p.username, p.best_score, p.total_coins
+    select p.username, p.avatar, p.best_score, p.total_coins
     from public.profiles p
     where p.best_score > 0
     order by p.best_score desc, p.updated_at asc
