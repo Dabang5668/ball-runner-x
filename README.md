@@ -32,7 +32,10 @@ authentication requests from file URLs.
 ```bash
 python -m http.server 5500
 ```
-
+or
+open
+https://dabang5668.github.io/ball-runner-x/
+or
 Then open http://localhost:5500
 
 ## Cloud saves (optional)
