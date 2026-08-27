@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 /* ============================================================
    BALL RUNNER X - AUTH + CLOUD SAVE
@@ -33,6 +33,12 @@
     const LS_ACHIEVEMENTS = "ballRunnerAchievements";
     const LS_SETTINGS     = "ballRunnerSettings";
 
+    /* Which account the numbers currently in localStorage belong to.
+       Empty / missing means "guest progress made on this device".
+       This is what stops account A's cloud save from being merged into
+       a brand new account B that signs up right after A logs out. */
+    const LS_OWNER        = "ballRunnerProgressOwner";
+
     const PLACEHOLDER_URL = "YOUR_SUPABASE_PROJECT_URL";
     const PLACEHOLDER_KEY = "YOUR_SUPABASE_ANON_KEY";
 
@@ -50,6 +56,23 @@
     let client = null;
     let currentUser = null;
     let currentProfile = null;
+
+    /* every read of a profile row asks for the same shape */
+    const PROFILE_COLUMNS_BASE = "id,username,best_score,total_coins,achievements,settings";
+    const PROFILE_COLUMNS_FULL = "id,username,avatar,best_score,total_coins,achievements,settings";
+
+    /* The avatar column arrived after the first release. If a project is
+       still on the old schema the first select fails, so we detect that
+       once and quietly fall back instead of breaking cloud saves. */
+    let avatarSupported = true;
+
+    function cols(){
+        return avatarSupported ? PROFILE_COLUMNS_FULL : PROFILE_COLUMNS_BASE;
+    }
+
+    function isMissingAvatar(error){
+        return !!error && /avatar/i.test(String(error.message || error));
+    }
 
     /* users whose cloud save has already been merged during this page load */
     const syncedUsers = new Set();
@@ -94,6 +117,38 @@
             achievements: readAchievements(),
             settings:     readSettings()
         };
+    }
+
+    /* ---------- progress ownership ---------- */
+
+    function getOwner(){
+        try{
+            return localStorage.getItem(LS_OWNER) || "";
+        }catch(e){
+            return "";
+        }
+    }
+
+    function setOwner(id){
+        try{
+            if(id) localStorage.setItem(LS_OWNER, id);
+            else localStorage.removeItem(LS_OWNER);
+        }catch(e){}
+    }
+
+    /* Wipes the device's score/coin/achievement progress so the next
+       player on this browser starts from zero. Cosmetic settings are
+       deliberately kept - they are a device preference, not progress. */
+
+    function clearLocalProgress(){
+        try{
+            localStorage.setItem(LS_BEST, "0");
+            localStorage.setItem(LS_COINS, "0");
+            localStorage.setItem(LS_ACHIEVEMENTS, "[]");
+            localStorage.removeItem(LS_OWNER);
+        }catch(e){}
+
+        if(window.GameProgressReset) window.GameProgressReset();
     }
 
 
@@ -168,21 +223,34 @@
 
         if(!client || !currentUser) return Promise.resolve(null);
 
-        return client
-            .from("profiles")
-            .select("id,username,best_score,total_coins,achievements,settings")
-            .eq("id", currentUser.id)
-            .maybeSingle()
-            .then(({data, error}) => {
+        function read(){
+            return client
+                .from("profiles")
+                .select(cols())
+                .eq("id", currentUser.id)
+                .maybeSingle();
+        }
 
-                if(error){
-                    console.warn("[GameAuth] Profile fetch failed:", error.message);
-                    return null;
-                }
+        return read().then(res => {
 
-                currentProfile = data || null;
-                return currentProfile;
-            });
+            /* old schema without the avatar column: retry once */
+            if(res.error && avatarSupported && isMissingAvatar(res.error)){
+                avatarSupported = false;
+                return read();
+            }
+
+            return res;
+
+        }).then(({data, error}) => {
+
+            if(error){
+                console.warn("[GameAuth] Profile fetch failed:", error.message);
+                return null;
+            }
+
+            currentProfile = data || null;
+            return currentProfile;
+        });
     }
 
 
@@ -204,8 +272,14 @@
         }
     }
 
-    /* Merges device progress with cloud progress, keeping the best of
-       both, then writes the result back to Supabase and localStorage. */
+    /* Brings the account's cloud save onto this device.
+
+       Local progress is only merged INTO the cloud when it actually
+       belongs to this account or to a guest who has never logged in on
+       this browser. If the numbers in localStorage were left behind by a
+       different account, they are discarded instead - otherwise player B
+       would inherit player A's high score just by signing up on the
+       same browser. */
 
     function syncProgress(){
 
@@ -214,11 +288,14 @@
         const userId = currentUser.id;
         syncedUsers.add(userId);
 
+        const owner = getOwner();
+        const claimLocal = (owner === "" || owner === userId);
+
         return fetchProfile().then(cloud => {
 
             const local = localSnapshot();
 
-            const merged = {
+            const merged = claimLocal ? {
                 best_score:  Math.max(local.best_score,  (cloud && cloud.best_score)  || 0),
                 total_coins: Math.max(local.total_coins, (cloud && cloud.total_coins) || 0),
                 achievements: [...new Set([
@@ -228,9 +305,20 @@
                 settings: Object.keys(local.settings).length
                     ? local.settings
                     : ((cloud && cloud.settings) || {})
+            } : {
+                /* foreign device progress: cloud is the only truth */
+                best_score:  (cloud && cloud.best_score)  || 0,
+                total_coins: (cloud && cloud.total_coins) || 0,
+                achievements: (cloud && Array.isArray(cloud.achievements)) ? cloud.achievements : [],
+                settings: Object.keys(local.settings).length
+                    ? local.settings
+                    : ((cloud && cloud.settings) || {})
             };
 
             applyToLocal(merged);
+            setOwner(userId);
+
+            if(window.GameProgressReset) window.GameProgressReset();
 
             /* The signup trigger normally creates the row. If it is missing
                for any reason, upsert so cloud saves still work. */
@@ -243,7 +331,7 @@
                   }, merged));
 
             return write
-                .select("id,username,best_score,total_coins,achievements,settings")
+                .select(cols())
                 .maybeSingle()
                 .then(({data, error}) => {
 
@@ -278,11 +366,14 @@
 
         if(!client || !currentUser) return Promise.resolve(null);
 
+        /* the numbers being pushed are this account's from now on */
+        setOwner(currentUser.id);
+
         return client
             .from("profiles")
             .update(localSnapshot())
             .eq("id", currentUser.id)
-            .select("id,username,best_score,total_coins,achievements,settings")
+            .select(cols())
             .maybeSingle()
             .then(({data, error}) => {
 
@@ -418,6 +509,11 @@
             currentUser = null;
             currentProfile = null;
             syncedUsers.clear();
+
+            /* The next player on this browser must not inherit these
+               numbers, and the ex-player's cloud row already has them. */
+            clearLocalProgress();
+
             notify();
         }
 
@@ -425,6 +521,71 @@
             .then(() => client.auth.signOut())
             .then(clear)
             .catch(clear);
+    }
+
+    /* ---------- profile editing ---------- */
+
+    const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+    /* Updates username and/or avatar. Both are optional; only the keys
+       that are actually provided get written. */
+
+    function updateProfile(changes){
+
+        if(!client || !currentUser)
+            return Promise.resolve({profile:null, error:"You need to be logged in."});
+
+        const patch = {};
+
+        if(typeof changes.username === "string"){
+
+            const name = changes.username.trim();
+
+            if(!USERNAME_RE.test(name))
+                return Promise.resolve({
+                    profile:null,
+                    error:"Username must be 3-20 characters: letters, numbers or underscore."
+                });
+
+            patch.username = name;
+        }
+
+        if(typeof changes.avatar === "string" && avatarSupported)
+            patch.avatar = changes.avatar.trim().slice(0, 40);
+
+        if(!Object.keys(patch).length)
+            return Promise.resolve({profile:currentProfile, error:null});
+
+        return client
+            .from("profiles")
+            .update(patch)
+            .eq("id", currentUser.id)
+            .select(cols())
+            .maybeSingle()
+            .then(({data, error}) => {
+
+                if(error) return {profile:null, error:friendlyError(error)};
+
+                currentProfile = data || currentProfile;
+                notify();
+                return {profile:currentProfile, error:null};
+            })
+            .catch(e => ({profile:null, error:friendlyError(e)}));
+    }
+
+    function changePassword(newPassword){
+
+        if(!client || !currentUser)
+            return Promise.resolve({error:"You need to be logged in."});
+
+        const pass = String(newPassword || "");
+
+        if(pass.length < 6)
+            return Promise.resolve({error:"Password must be at least 6 characters."});
+
+        return client.auth.updateUser({password: pass})
+            .then(({error}) => ({error: error ? friendlyError(error) : null}))
+            .catch(e => ({error: friendlyError(e)}));
     }
 
     function getLeaderboard(limit){
@@ -468,6 +629,11 @@
             return "Guest";
         },
 
+        /* emoji avatar id, or "" when the player has not picked one */
+        getAvatar(){
+            return (currentProfile && currentProfile.avatar) || "";
+        },
+
         signUp,
         signIn,
         signInWithGoogle,
@@ -475,6 +641,8 @@
         syncProgress,
         pushProgress,
         getLeaderboard,
+        updateProfile,
+        changePassword,
 
         onChange(fn){
             if(typeof fn !== "function") return () => {};

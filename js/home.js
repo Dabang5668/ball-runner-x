@@ -80,9 +80,14 @@
                 const mine = myName && row.username === myName;
                 const medal = ["🥇","🥈","🥉"][i] || (i + 1);
 
+                const name = String(row.username || "");
+                const face = row.avatar
+                    ? escapeHtml(row.avatar)
+                    : escapeHtml(name.charAt(0).toUpperCase() || "?");
+
                 return `<tr class="${mine ? "me" : ""}">
                     <td class="rank">${medal}</td>
-                    <td>${escapeHtml(row.username)}${mine ? " (you)" : ""}</td>
+                    <td><span class="lb-face" aria-hidden="true">${face}</span>${escapeHtml(name)}${mine ? " (you)" : ""}</td>
                     <td class="score">${Number(row.best_score || 0)}</td>
                     <td class="score">${Number(row.total_coins || 0)}</td>
                 </tr>`;

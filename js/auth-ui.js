@@ -334,12 +334,25 @@
             const name = window.GameAuth.getDisplayName();
             const safe = escapeHtml(name);
 
+            /* emoji avatar when the player picked one, otherwise the
+               first letter of their name */
+            const avatar = window.GameAuth.getAvatar
+                ? window.GameAuth.getAvatar()
+                : "";
+
+            const face = escapeHtml(avatar || initials(name));
+
             box.innerHTML = `
-                <div class="auth-chip" title="Logged in as ${safe}">
-                    <span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span>
+                <button class="auth-chip" id="navProfileBtn" title="Open your profile">
+                    <span class="avatar" aria-hidden="true">${face}</span>
                     <span class="who">${safe}</span>
-                </div>
+                    <span class="chip-caret" aria-hidden="true">▾</span>
+                </button>
                 <button class="auth-btn" id="navLogoutBtn">LOG OUT</button>`;
+
+            box.querySelector("#navProfileBtn").addEventListener("click", () => {
+                if(window.ProfileUI) window.ProfileUI.open();
+            });
 
             box.querySelector("#navLogoutBtn").addEventListener("click", function(){
                 this.disabled = true;
