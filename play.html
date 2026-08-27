@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ Ball Runner X — Play</title>
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+
+<body>
+
+<div id="playHeader">
+    <a href="index.html">← Home</a>
+    <a href="customize.html">🎨 Customize</a>
+    <a href="howtoplay.html">❓ How To Play</a>
+</div>
+
+<div id="gameWrap">
+    <canvas id="game"></canvas>
+
+    <div id="hint">
+        <span id="hintMain">⚠️ GET READY!</span>
+        <small id="hintSub">Obstacle incoming...</small>
+    </div>
+
+    <div id="mobileControls">
+        <button class="control" id="duckBtn">⬇</button>
+        <button class="control" id="jumpBtn">⬆</button>
+    </div>
+
+    <div id="audioControls">
+        <button class="audio-btn" id="sfxBtn" title="Sound effects (M)" aria-label="Toggle sound effects">🔊</button>
+        <button class="audio-btn" id="musicBtn" title="Music (N)" aria-label="Toggle music">🎵</button>
+    </div>
+
+    <div id="toastContainer"></div>
+</div>
+
+<script src="js/audio.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"
+        crossorigin="anonymous"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/auth-ui.js"></script>
+<script src="js/game.js"></script>
+
+
+</body>
+</html>

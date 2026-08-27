@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ Ball Runner X</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<nav class="nav">
+    <a class="logo" href="index.html">⚡ BALL RUNNER X</a>
+    <div class="nav-links">
+        <a href="index.html" class="active">Home</a>
+        <a href="play.html">Play</a>
+        <a href="customize.html">Customize</a>
+        <a href="howtoplay.html">How To Play</a>
+    </div>
+</nav>
+
+<main class="page">
+
+    <section class="hero">
+        <h1>BALL RUNNER X</h1>
+        <p>SURVIVE • DODGE • RUN • BEAT YOUR HIGH SCORE</p>
+
+        <div class="hero-ball"></div>
+
+        <div class="btn-row">
+            <a class="btn btn-primary" href="play.html">▶ PLAY NOW</a>
+            <a class="btn btn-secondary" href="customize.html">🎨 CUSTOMIZE</a>
+            <a class="btn btn-secondary" href="howtoplay.html">❓ HOW TO PLAY</a>
+        </div>
+    </section>
+
+    <section class="stats-row" id="statsRow">
+        <div class="stat-card">
+            <div class="value" id="statBest">0</div>
+            <div class="label">BEST SCORE</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statCoins">0</div>
+            <div class="label">TOTAL COINS</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" id="statAchievements">0 / 6</div>
+            <div class="label">ACHIEVEMENTS</div>
+        </div>
+    </section>
+
+    <div class="panel" id="leaderboardPanel">
+        <h2>🏆 Global Leaderboard</h2>
+        <div class="sub" id="leaderboardSub">Top runners across every device.</div>
+        <div id="leaderboardBody">
+            <div class="leaderboard-empty">Loading…</div>
+        </div>
+    </div>
+
+</main>
+
+<footer>Ball Runner X &mdash; built with HTML5 Canvas. Press Play and dodge everything.</footer>
+
+<script src="js/starfield.js"></script>
+<script src="js/nav-settings.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"
+        crossorigin="anonymous"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/auth-ui.js"></script>
+<script src="js/home.js"></script>
+
+</body>
+</html>

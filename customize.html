@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ Ball Runner X — Customize</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<nav class="nav">
+    <a class="logo" href="index.html">⚡ BALL RUNNER X</a>
+    <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="play.html">Play</a>
+        <a href="customize.html" class="active">Customize</a>
+        <a href="howtoplay.html">How To Play</a>
+    </div>
+</nav>
+
+<main class="page">
+
+    <div class="panel">
+        <h2>Customize Your Ball &amp; World</h2>
+        <div class="sub">Changes save automatically and apply the next time you play.</div>
+
+        <div class="section-title">🌌 World Presets &mdash; one click, everything changes</div>
+        <div class="theme-grid" id="presetGrid"></div>
+
+        <div class="section-title">Ball Color</div>
+        <div class="swatch-row" id="swatchRow"></div>
+
+        <div class="section-title">Background Theme</div>
+        <div class="theme-grid" id="themeGrid"></div>
+
+        <div class="section-title">Obstacle Style (spikes, walls, drones, everything)</div>
+        <div class="theme-grid" id="skinGrid"></div>
+
+        <div class="section-title">Live Preview</div>
+        <div id="previewWrap">
+            <canvas id="previewCanvas" width="360" height="190"></canvas>
+        </div>
+
+        <div class="btn-row" style="justify-content:flex-start; margin-top:28px;">
+            <a class="btn btn-primary" href="play.html">▶ PLAY WITH THIS LOOK</a>
+            <button class="btn btn-secondary" id="resetBtn">↺ RESET TO DEFAULT</button>
+        </div>
+    </div>
+
+</main>
+
+<footer>Your look is saved on this device and used automatically in-game.</footer>
+
+<script src="js/starfield.js"></script>
+<script src="js/nav-settings.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"
+        crossorigin="anonymous"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/auth-ui.js"></script>
+<script src="js/customize.js"></script>
+
+</body>
+</html>

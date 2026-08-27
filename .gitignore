@@ -1,0 +1,14 @@
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# editors
+.vscode/
+.idea/
+
+# dependencies (the game itself needs none)
+node_modules/
+
+# logs
+*.log
